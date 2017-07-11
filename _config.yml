@@ -2,11 +2,10 @@
 title: Portfolio de AD1
 email: gustavoyama@gmail.com
 description: > # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
+  Aqui estao algumas das atividades praticas da disciplina de Analise de Dados 1.
 baseurl: "/portfolio-AD1" # the subpath of your site, e.g. /blog/
 url: "http://GustavoYamaguchi.github.io/portfolio-AD1/" # the base hostname & protocol for your site
+facebook_username: gustavo.yamaguchi.75
 github_username:  GustavoYamaguchi
 permalink: /:year/:month/:title.html
 
