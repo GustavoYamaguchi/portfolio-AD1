@@ -1,0 +1,213 @@
+---
+layout: post
+title:  "Problema 1, CheckPoint 4"
+date: `r Sys.time()`
+published: true
+tags: [htmlwidgets, r]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("ggplot2")
+library("dplyr")
+library("tidyr")
+library("readr")
+```
+
+##Sobre os dados utilizados:
+Os dados utilizados nessa analise sao sobre avaliacoes de series no IMDB. Entre as variaveis encontramos os nomes das diferentes series analisadas, nota geral de cada episodio, numero da temporada, numero do episodio de cada temporada, numero do episodio da serie, e as distribuicoes de notas que variam no intervalo r1~r10 onde r1 e a pior avaliacao recebida, e logicamente, r10 a melhor avaliacao.
+
+Nessa analise estudaremos 4 questionamentos cujas respostas podem ser extraidas desses dados.
+
+##Pergunta 1: Series com grande quantidade de indice r1 eh uma serie mal avaliada?
+
+####Resposta:
+
+```{r}
+series_from_imdb <- read.csv("../dados/series_from_imdb.csv")
+series_r1 <- series_from_imdb %>% 
+  group_by( series_name) %>% 
+    summarise(mediana = median(r1), media = mean(r1))
+
+maior_mediana_r1 <- max(series_r1[,2])
+maior_media_r1 <- max(series_r1[,3])
+
+series_r1 %>% 
+  filter(mediana == maior_mediana_r1 | media == maior_media_r1)
+```
+
+Vemos que a maior media e mediana de r1 foi da serie 'The 100', o que significa que essa serie foi a que mais teve haters, agora precisamos analisar se por ela receber muitas avaliacoes negativas ela eh uma serie mal avaliada.
+
+```{r}
+the_100 <- series_from_imdb %>% 
+  filter(series_name=="The 100")
+  
+ggplot(the_100, mapping = aes(x = series_ep, y= UserRating)) +
+  geom_point(colour="blue") +
+  geom_line(colour="darkorange") 
+```
+
+Vemos que houve grandes variacoes de notas alcancadas pela serie The 100, o que influencia na avaliacao geral da serie.
+Podemos ver na tabela a seguir que a serie nao obteve uma avaliacao tao boa justamente por essa irregularidade entre os episodios 36 e 48.
+
+```{r}
+series_baixa_media <- series_from_imdb %>% 
+  group_by(series_name) %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating)) %>% 
+  filter(media < 8.2 | mediana <= 8.2)
+
+series_baixa_media %>% 
+  arrange(media)
+```
+
+Na lista acima vemos as series com medias mais baixas. Podemos perceber que a serie com maior indice r1 (The 100), nao eh a serie pior avaliada, The Simpson ocupou esse posto, ja The 100 esta na terceira pior posicao (dos piores). Concluindo, a serie com maior indice r1 eh mal avaliada, porem, nao eh a pior na avaliacao do IMDB.
+
+
+##Pergunta 2: Se analisarmos a temporada que foi melhor avaliada de uma serie, ela se destaca da nota geral da serie? Muito? Pouco?
+####Resposta:
+Ja que estamos analisando a serie The 100 e ela obteve grandes variacoes de pontuacoes, podemos analisar cada temporada e verificar se houve grande diferenca na avaliacao da melhor temporada e a serie no geral.
+```{r}
+the100_sea1 <- 
+  the_100 %>% 
+  filter(season==1)
+the100_sea2 <- 
+  the_100 %>% 
+  filter(season==2)
+the100_sea3 <- 
+  the_100 %>% 
+  filter(season==3)
+the100_sea4 <- 
+  the_100 %>% 
+  filter(season==4)
+
+ggplot(the100_sea1, mapping = aes(x = season_ep, y= UserRating)) +
+  geom_point(data = the100_sea1, colour="blue") +
+  geom_point(data = the100_sea2, colour="yellow") +
+  geom_point(data = the100_sea3, colour="green") +
+  geom_point(data = the100_sea4, colour="magenta") +
+  geom_line(data = the100_sea1, colour="blue") +
+  geom_line(data = the100_sea2, colour="yellow") +
+  geom_line(data = the100_sea3, colour="green") +
+  geom_line(data = the100_sea4, colour="magenta") +
+  annotate("text", x=14.5, y=8,label="Cor - Temporada
+Azul -  1
+Amarelo -  2
+Verde -  3
+Rosa -  4", colour="darkorange")
+
+```
+
+No grafico acima percebemos visualmente que as temporadas 2 e 4 foram mais bem avaliadas, agora precisamos de um metodo para distinguir matematicamente qual das duas temporadas foi a melhor.
+
+```{r}
+the_100 %>% 
+  group_by(season) %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+```
+
+Agora sim, podemos conferir numericamente que as temporadas 2 e 4 foram melhor avaliadas, e que a temporada 2 ainda obteve a mediana maior que a temporada 4. Isso indica que 50% dos episodios avaliados da temporada 2 tiveram nota acima de 8.6 e a temporada 4 teve mediana em 8.5. Devemos agora calcular a diferenca entre a temporada 2 com o restante da serie.
+
+```{r}
+the_100 %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+```
+
+Comparando a temporada mais bem avaliada (segunda temporada) com a avaliacao geral da serie, nao notamos uma diferenca muito grande, visto que as medianas variam em apenas 0.25 e as medias em 0.55. Podemos considerar pouca a diferenca, porque a variacao entre notas sempre existe, e a diferenca foi de apenas 0.25 na mediana, o que significa ser uma variacao comum as series.
+
+##Perguntas derivadas:
+
+###1. Na primeira pergunta vimos que o alto indice de r1 nao foi um fator decisivo para a serie pior avaliada, mas que a colocou entre as piores series. A ausencia (menor indice) em r10 seria decisivo para a pior serie? Por que?
+
+###2. Com a segunda pergunta, observamos que uma temporada melhor avaliada nao teve uma diferenca gritante comparada a avaliacao geral da serie, esse fator eh mais dificil de ser observado em series com mais temporadas (mais temporadas indica uma grande regularidade da serie)?
+
+##Respostas:
+###1. Primeiro devemos verificar qual serie tem menor indice r10:
+
+```{r}
+series_r10 <- series_from_imdb %>% 
+  group_by( series_name) %>% 
+    summarise(mediana = median(r10), media = mean(r10))
+
+menor_mediana_r10 <- min(series_r10[,2])
+menor_media_r10 <- min(series_r10[,3])
+
+series_r10 %>% 
+  filter(mediana == menor_mediana_r10 | media == menor_media_r10)
+```
+
+The Simpson eh a serie do IMDB que tem menos episodios com notas r10. Comparemos com as piores series do IMDB:
+
+```{r}
+series_baixa_media %>% 
+  arrange(media)
+```
+
+Sim, The Simpson a serie pior avaliada pelo IMDB, eh tambem a serie com menor indice r10.
+
+```{r}
+series_r10 %>% 
+  arrange(media) %>% 
+  slice(1:5)
+```
+
+Porem, se compararmos a tabela acima dos piores indices de r10 com a tabela das piores series (avaliacao geral), e veremos que as duas primeiras series se repetem em ambas as tabelas, mas as outras "piores" series nao aparecem na tabela de menores indices de r10. Portanto, concluimos que eh uma coincidencia, pois ocorreu apenas em 2 casos (The Simpsons e Modern Family).
+
+###2. Primeiro devemos destacar as series com mais temporadas:
+```{r}
+maior_qt_temporada <- max(series_from_imdb[,3])
+series_from_imdb %>% 
+  filter(season == maior_qt_temporada) %>% 
+    distinct(series_name) %>% 
+      slice(2:4) #GREYS ANATOMY ESTA COM ERRO PARA O FILTER PELO NOME
+```
+
+As series sao Friends, How I met your mother e The Simpsons.
+```{r}
+the_simp <- series_from_imdb %>% 
+  filter(series_name=="The Simpsons")
+himym <- series_from_imdb %>% 
+  filter(series_name=="How I Met Your Mother")
+friends <- series_from_imdb %>% 
+  filter(series_name=="Friends")
+#greys_anatomy <- series_from_imdb %>% GREYS ANATOMY ESTA COM ERRO PARA O FILTER PELO NOME
+  #filter(series_name=="Grey's Anatomy")
+
+the_simp%>% 
+  group_by(season) %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+himym%>% 
+  group_by(season) %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+friends%>% 
+  group_by(season) %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+```
+
+Em The Simpsons a melhor temporada eh a quinta com media 8.35 e mediana em 8.4;
+Em How I Met Your Mother a melhor temporada eh a segunda com media 8.55 e mediana em 8.5;
+Em Friends a melhor temporada eh a quinta com media 8.7 e mediana em 8.6.
+
+```{r}
+the_simp %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+himym %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+friends %>% 
+  summarise(media = mean(UserRating), mediana = median(UserRating), desvio=sd(UserRating))
+```
+
+Acima valor esperado, mediana e desvio padrao de cada serie (avaliacao geral).
+Para The Simpsons vemos que a media da serie foi 7.37, quando a melhor temporada ficou com 8.35, resultando numa variacao de 0.98, quase 1 ponto de variacao.
+Para How I Met Your Mother, a media geral eh de 8.22 e da melhor temporada eh de 8.55, 0.33 de diferenca.
+Para Friends, a media geral da serie foi de 8.54 ja da melhor temporada foi de 8.7, diferenca de 0.16.
+
+Falando ainda dos resultados acima, calculamos propositalmente o desvio padrao. Esse valor indica o grau de variacao de um conjunto de dados, medidos a partir do valor esperado. Observamos que as temporadas que mais se destacam do restante da serie tem um valor alto de desvio padrao. Esse valor (desvio padrao) esta indica a variacao de valores entre temporadas das series.
+
+####Comparando os desvios padroes e confirmando a afirmacao anterior: 
+The Simpsons com uma alta taxa desvio padrao (DP) 0.74 teve uma variacao de 0.98 nas avaliacoes da temporada com a avaliacao geral.
+How I Met Your Mother com uma taxa regular de DP 0.56 teve uma variacao de 0.33 nas avaliacoes da temporada com a avaliacao geral.
+Friends com uma taxa baixa de DP 0.36 teve uma variacao de 0.16 nas avaliacoes da temporada com a avaliacao geral.
+
+#Conclusoes
+Vimos que nem a ausencia de indice r10 nem o alto indice em r1 vao definir a serie pior avaliada. Mas que esses dois fatores apontam algumas das series com piores avaliacoes.
+Observamos tambem que uma temporada de uma serie que se destaca do restante da serie, sofre uma grande variacao de notas, as que menos tem diferenca de nota (entre temporada melhor avaliada e a serie) possui uma regularidade de avaliacao maior.
